@@ -1,0 +1,373 @@
+'''REGEX = r"""
+\d+\.\d+ |     # decimals like 79.38
+\d+/\d+ |     # fractions like 13/16
+\d+            # integers
+"""'''
+'''REGEX = r"""
+\d+\.\d+\s*"? |
+\d+-\d+/\d+\s*"? |
+\d+/\d+\s*"? |
+\d+\s*"? 
+"""'''
+
+
+'''def find_certified_y(page):
+    certified_ys = []
+
+    for block in page.get_text("dict")["blocks"]:
+        if block["type"] != 0:
+            continue
+        for line in block["lines"]:
+            for span in line["spans"]:
+                if "CERTIFIED" in span["text"].upper():
+                    _, _, _, y1 = span["bbox"]
+                    certified_ys.append(y1)
+
+    return max(certified_ys) if certified_ys else None
+
+def extract_numbers(pdf_path):
+    doc = fitz.open(pdf_path)
+    page_final = []
+
+    for page_index, page in enumerate(doc):
+        certified_y = find_certified_y(page)
+        pw, ph = page.rect.width, page.rect.height
+        candidates = []
+        row_counter = {}
+
+        for block in page.get_text("dict")["blocks"]:
+            if block["type"] != 0:
+                continue
+
+            for line in block["lines"]:
+                # 🔗 Merge spans on same line
+                merged_text = ""
+                merged_x0 = None
+                merged_y0 = None
+                merged_x1 = None
+                merged_y1 = None
+
+                for span in line["spans"]:
+                    x0, y0, x1, y1 = span["bbox"]
+                    text = span["text"]
+
+                    # ❌ Ignore everything BELOW "CERTIFIED"
+                    if certified_y is not None and y0 > certified_y + 20:
+                        continue
+
+                    if span["size"] < 6:
+                        continue
+
+                    # ❌ Ignore top title/date area
+                    if y1 < ph * 0.05:
+                        continue
+
+                    # ❌ Ignore bottom-right notes
+                    if y0 > ph * 0.85 and x0 > pw * 0.60:
+                        continue
+
+                    if merged_text:
+                        if x0 - merged_x1 <= MERGE_X_GAP:
+                            merged_text += text
+                            merged_x1 = x1
+                            merged_y1 = max(merged_y1, y1)
+                        else:
+                            candidates.append(
+                                (merged_text, merged_x0, merged_y0, merged_x1, merged_y1)
+                            )
+                            merged_text = text
+                            merged_x0, merged_y0, merged_x1, merged_y1 = x0, y0, x1, y1
+                    else:
+                        merged_text = text
+                        merged_x0, merged_y0, merged_x1, merged_y1 = x0, y0, x1, y1
+
+                if merged_text:
+                    candidates.append(
+                        (merged_text, merged_x0, merged_y0, merged_x1, merged_y1)
+                    )
+
+        # 🔍 Extract numbers from merged lines
+        for text, x0, y0, x1, y1 in candidates:
+            upper = text.upper()
+
+            # ❌ Strong table keyword rejection
+            if any(k in upper for k in [
+                "ITEM", "QTY", "PART", "NUMBER", "DESCRIPTION",
+                "DWG", "REV", "SHEET", "WEIGHT", "SCALE",
+                "DRAWN", "CHECKED", "MATERIAL", "TOLERANCE",
+                "PROPRIETARY", "CONFIDENTIAL"
+            ]):
+                continue
+
+            y_center = round((y0 + y1) / 2)
+
+            for match in re.finditer(REGEX, text, re.VERBOSE):
+                val = match.group().strip()
+
+                # Count per row
+                row_key = None
+                for ry in row_counter:
+                    if abs(ry - y_center) <= Y_TOLERANCE:
+                        row_key = ry
+                        break
+                if row_key is None:
+                    row_key = y_center
+                    row_counter[row_key] = 0
+
+                row_counter[row_key] += 1
+
+                page_final.append({
+                    "page": page_index,
+                    "value": val,
+                    "x": x0,
+                    "y": y_center,
+                    "row": row_key
+                })
+
+        # ❌ Remove ONLY true table rows
+        final = [
+            item for item in final
+            if row_counter.get(item["row"], 0) < TABLE_ROW_THRESHOLD
+        ]
+
+    return page_final'''
+
+
+def extract_numbers(pdf_path):
+    doc = fitz.open(pdf_path)
+    final = []
+
+    for page_index, page in enumerate(doc):
+        pw, ph = page.rect.width, page.rect.height
+
+        DRAWING_TOP = ph * 0.08        # below title
+        DRAWING_BOTTOM = ph * 0.72     # above CERTIFIED + title block
+
+        for block in page.get_text("dict")["blocks"]:
+            if block["type"] != 0:
+                continue
+
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    x0, y0, x1, y1 = span["bbox"]
+                    text = span["text"]
+
+                    if span["size"] < 6:
+                        continue
+
+                    # ✅ ONLY DRAWING AREA
+                    if not (DRAWING_TOP < y0 < DRAWING_BOTTOM):
+                        continue
+
+                    upper = text.upper()
+
+                    # ❌ Kill obvious non-drawing text
+                    if any(k in upper for k in [
+                        "NOTE", "ITEM", "QTY", "DWG",
+                        "REV", "SHEET", "SCALE",
+                        "MATERIAL", "WEIGHT",
+                        "PROPRIETARY", "CONFIDENTIAL"
+                    ]):
+                        continue
+
+                    for match in re.finditer(REGEX, text, re.VERBOSE):
+                        final.append({
+                            "page": page_index,
+                            "value": match.group().strip(),
+                            "x": x0,
+                            "y": (y0 + y1) / 2
+                        })
+
+    return final
+
+
+
+
+
+
+def extract_numbers(pdf_path):
+    doc = fitz.open(pdf_path)
+    final = []
+
+    MERGE_X_GAP = 12  # critical
+
+    for page_index, page in enumerate(doc):
+        pw, ph = page.rect.width, page.rect.height
+
+        for block in page.get_text("dict")["blocks"]:
+            if block["type"] != 0:
+                continue
+
+            for line in block["lines"]:
+                merged_text = ""
+                mx0 = my0 = mx1 = my1 = None
+
+                for span in line["spans"]:
+                    x0, y0, x1, y1 = span["bbox"]
+                    text = span["text"]
+
+                    if span["size"] < 6:
+                        continue
+
+                    if span["size"] < 6:
+                        continue
+
+                    if y1 < ph * 0.05:
+                        continue
+
+                    if is_table_zone(x0, y0, pw, ph):
+                        continue
+
+
+                    upper = text.upper()
+                    if any(k in upper for k in [
+                        "NOTE", "ITEM", "QTY", "DWG",
+                        "REV", "SHEET", "SCALE",
+                        "MATERIAL", "WEIGHT",
+                        "PROPRIETARY", "CONFIDENTIAL"
+                    ]):
+                        continue
+
+                    # 🔗 merge spans on same line
+                    if not merged_text:
+                        merged_text = text
+                        mx0, my0, mx1, my1 = x0, y0, x1, y1
+                    elif x0 - mx1 <= MERGE_X_GAP:
+                        merged_text += " " + text
+                        mx1 = x1
+                        my1 = max(my1, y1)
+                    else:
+                        for match in re.finditer(REGEX, merged_text, re.VERBOSE):
+                            final.append({
+                                "page": page_index,
+                                "value": match.group().strip(),
+                                "x": mx0,
+                                "y": (my0 + my1) / 2
+                            })
+                        merged_text = text
+                        mx0, my0, mx1, my1 = x0, y0, x1, y1
+
+                # flush remaining merged text
+                if merged_text:
+                    for match in re.finditer(REGEX, merged_text, re.VERBOSE):
+                        final.append({
+                            "page": page_index,
+                            "value": match.group().strip(),
+                            "x": mx0,
+                            "y": (my0 + my1) / 2
+                        })
+
+    return final
+
+
+
+'''def is_typ_dimension(text):
+    upper = text.upper()
+    return any(k in upper for k in [" TYP", "TYP.", "TYPE", "(TYP)"])
+
+def extract_numbers(pdf_path):
+    doc = fitz.open(pdf_path)
+    final_extracted = []
+
+    MERGE_X_GAP = 12
+    TABLE_ROW_THRESHOLD = 8  # very important
+
+    for page_index, page in enumerate(doc):
+        extracted = []
+        row_counter = {}
+
+        pw, ph = page.rect.width, page.rect.height
+
+        for block in page.get_text("dict")["blocks"]:
+            if block["type"] != 0:
+                continue
+
+            for line in block["lines"]:
+                merged_text = ""
+                mx0 = my0 = mx1 = my1 = None
+
+                for span in line["spans"]:
+                    x0, y0, x1, y1 = span["bbox"]
+                    text = span["text"]
+
+                    if span["size"] < 6:
+                        continue
+
+                    if y1 < ph * 0.05:
+                        continue
+
+                    if y0 > ph * 0.83 and x0 > pw * 0.60:
+                        continue
+
+                    upper = text.upper()
+                    if any(k in upper for k in [
+                        "ITEM", "QTY", "PART", "NUMBER",
+                        "DESCRIPTION", "REV", "DWG",
+                        "SHEET", "WEIGHT", "SCALE",
+                        "DRAWN", "CHECKED", "MATERIAL"
+                    ]):
+                        continue
+
+                    if not merged_text:
+                        merged_text = text
+                        mx0, my0, mx1, my1 = x0, y0, x1, y1
+                    elif x0 - mx1 <= MERGE_X_GAP:
+                        merged_text += " " + text
+                        mx1 = x1
+                        my1 = max(my1, y1)
+                    else:
+                        extracted.append((merged_text, mx0, my0, mx1, my1))
+                        merged_text = text
+                        mx0, my0, mx1, my1 = x0, y0, x1, y1
+
+                if merged_text:
+                    extracted.append((merged_text, mx0, my0, mx1, my1))
+
+        # 🔍 Extract values
+        for text, x0, y0, x1, y1 in extracted:
+            y_center = round((y0 + y1) / 2)
+
+            # Attach TYP if present
+            is_typ = "TYP" in text.upper()
+
+            # ❌ Skip TYP / TYPE dimensions completely
+            if is_typ_dimension(text):
+                continue
+
+            for match in re.finditer(REGEX, text, re.VERBOSE):
+                val = match.group()
+
+
+                # ✅ KEEP ZERO VALUES
+                # (do not skip "0" or "0.000")
+
+                if is_typ:
+                    val = f"{val} TYP"
+
+                row_key = None
+                for ry in row_counter:
+                    if abs(ry - y_center) <= Y_TOLERANCE:
+                        row_key = ry
+                        break
+
+                if row_key is None:
+                    row_key = y_center
+                    row_counter[row_key] = 0
+
+                row_counter[row_key] += 1
+
+                final_extracted.append({
+                    "page": page_index,
+                    "value": val,
+                    "x": x0,
+                    "y": y_center,
+                    "row": row_key
+                })
+
+    # ❌ Remove ONLY TRUE TABLES (not drawings)
+    final_extracted = [
+        item for item in final_extracted
+        if row_counter.get(item["row"], 0) < TABLE_ROW_THRESHOLD
+    ]
+
+    return final_extracted'''

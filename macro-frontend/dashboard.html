@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="shortcut icon" type="image/jpeg" href="icon.jpeg">
+<title>Balloon Measurement Extractor</title>
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      crossorigin="anonymous" />
+
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+
+<!-- 🔒 AUTH PROTECTION -->
+<script>
+if (localStorage.getItem("macrodyne_auth") !== "true") {
+    window.location.href = "login.html";
+}
+</script> 
+
+<style>
+:root {
+    --primary: #0b5ed7;
+    --primary-dark: #063a9e;
+    --accent: #e9f1ff;
+    --danger: #dc3545;
+    --bg: #eef2f7;
+    --card: #ffffff;
+    --border: #dfe6f0;
+    --text: #1f2937;
+    --muted: #6b7280;
+}
+
+/* ================= RESET ================= */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Inter, Roboto, Arial, sans-serif;
+    background: linear-gradient(180deg, #e9eef6, #f7f9fc);
+    padding: 30px;
+    color: var(--text);
+}
+
+/* ================= HEADER ================= */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    margin-bottom: 28px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #fdfefe, #eef3fb);
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logo {
+    height: 64px;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--primary-dark);
+    letter-spacing: 0.4px;
+}
+
+.brand-sub {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* ================= LOGOUT ================= */
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ff6b6b, var(--danger));
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(220,53,69,0.35);
+    transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(220,53,69,0.45);
+}
+
+/* ================= MAIN CARD ================= */
+.container {
+    max-width: 1200px;
+    margin: auto;
+    background: var(--card);
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.08);
+}
+
+/* ================= TITLES ================= */
+h2 {
+    margin-top: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+h3 {
+    margin-top: 35px;
+    font-size: 18px;
+    color: var(--primary-dark);
+    border-left: 4px solid var(--primary);
+    padding-left: 10px;
+}
+
+/* ================= DROP AREA ================= */
+.drop-area {
+    margin-top: 15px;
+    border: 2px dashed var(--primary);
+    padding: 40px;
+    border-radius: 16px;
+    text-align: center;
+    background: linear-gradient(180deg, #f9fbff, var(--accent));
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.drop-area:hover {
+    background: linear-gradient(180deg, #eef4ff, #dde8ff);
+    transform: translateY(-1px);
+}
+
+#fileName {
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+/* ================= BUTTONS ================= */
+button {
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+}
+
+button:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: linear-gradient(180deg, #1f6af5, var(--primary));
+    color: white;
+}
+
+.btn-green {
+    background: linear-gradient(180deg, #2ecc71, #198754);
+    color: white;
+}
+
+.btn-gray {
+    background: linear-gradient(180deg, #adb5bd, #6c757d);
+    color: white;
+}
+
+.btn-red:hover{
+    background: linear-gradient(180deg, #ff6b6b, var(--danger));
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(220,53,69,0.35);
+}
+
+.btn-bluee.active {
+    background: #a4c5f7;
+    color: white;
+    font-weight: bold;
+}
+
+.btn-bluee:hover {
+    background: #0b5ed7;
+    color: white;
+}
+
+.btn-greenn{
+    margin-left: 720px;
+    margin-top: 15px;
+    background: linear-gradient(180deg, #2ecc71, #198754);
+    color: white;
+}
+
+/* ================= STATUS ================= */
+#status {
+    margin-top: 15px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+/* ================= PDF ================= */
+iframe {
+    width: 100%;
+    height: 520px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: #fff;
+}
+
+/* =========================
+   SERIAL NUMBER COLUMN
+========================= */
+.num-index {
+    width: 42px;
+    min-width: 42px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 13px;
+    color: #0b5ed7;
+    background: #eef3ff;
+    border-radius: 8px;
+    padding: 6px 0;
+    border: 1px solid #d6e0ff;
+}
+
+
+/* ================= NUMBERS ================= */
+.numbers-box {
+    margin-top: 15px;
+    padding: 14px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: #f8fafc;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+}
+
+.num-row {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    transition: background 0.2s ease;
+}
+
+.num-row:hover {
+    background: #f1f5ff;
+}
+
+.num-input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.num-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(11,94,215,0.2);
+}
+
+
+</style>
+
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<div class="app-header">
+    <div class="header-left">
+        <img src="logo.png" alt="Macrodyne Logo" class="logo">
+    </div>
+
+    <button class="btn-red logout-btn" onclick="logout()">
+        <i class="fa-solid fa-power-off"></i>
+        Logout
+    </button>
+</div>
+
+
+<div class="container">
+
+    <!-- 🔐 USER BAR -->
+    <div class="top-bar">
+        <div>
+            Logged in as: <b id="userEmail"></b>
+        </div>
+        <!--<button class="btn-red" onclick="logout()">Logout</button>-->
+    </div>
+
+    <h2>Balloon Measurement Extractor</h2>
+
+    <!-- Drag + Drop -->
+    <div id="dropArea" class="drop-area">
+        Drag & Drop PDF here or Click to Select
+        <br><br>
+        <input id="fileInput" type="file" accept="application/pdf" style="display:none;">
+        <p id="fileName">No file selected</p>
+    </div>
+
+    <br>
+
+    <!-- Buttons -->
+    <button class="btn-primary" onclick="uploadFile()">Upload & Extract</button>
+    <button class="btn-green" onclick="downloadExcel()">Download Excel</button>
+    <button class="btn-gray" onclick="undo()">Undo</button>
+    <button class="btn-primary" onclick="downloadBallooned()">Download Ballooned PDF</button>
+    <!--<button class="btn-blue" onclick="downloadInchExcel()">Download Inch Excel</button>
+    <button class="btn-orange" onclick="downloadMetricExcel()">Download Metric Excel</button>-->
+    <button class="btn-purple" onclick="downloadToleranceExcel()">Download Tolerance Excel</button>
+
+    <p id="status" style="margin-top:10px;"></p>
+
+    <h3>PDF Preview</h3>
+    <iframe id="pdfViewer" style="width:100%; height:500px; border:1px solid #ccc;"></iframe>
+
+    <h3>Preview & Edit Measurements</h3>
+    <div id="numbersBox" class="numbers-box"></div>
+    <button class="btn-greenn" onclick="addMeasurement()">➕ Add Measurement</button>
+
+</div>
+
+<script>
+/* ================================
+   USER INFO
+================================ */
+document.getElementById("userEmail").innerText =
+    localStorage.getItem("macrodyne_user") || "Unknown";
+
+/* ================================
+   LOGOUT
+================================ */
+function logout(){
+    localStorage.removeItem("macrodyne_auth");
+    localStorage.removeItem("macrodyne_user");
+    window.location.href = "login.html";
+}
+
+/* ================================
+   GLOBAL STATE
+================================ */
+let selectedFile = null;
+let numbers = [];
+let historyStack = [];
+let balloonPDFUrl = null;
+let tolerances = {};
+
+const dropArea = document.getElementById("dropArea");
+const fileInput = document.getElementById("fileInput");
+const statusEl = document.getElementById("status");
+const numbersBox = document.getElementById("numbersBox");
+
+/* ================================
+   DRAG + DROP
+================================ */
+dropArea.onclick = () => fileInput.click();
+
+dropArea.addEventListener("dragover", e => e.preventDefault());
+dropArea.addEventListener("drop", e => {
+    e.preventDefault();
+    selectedFile = e.dataTransfer.files[0];
+    showSelectedFile();
+});
+
+fileInput.onchange = e => {
+    selectedFile = e.target.files[0];
+    showSelectedFile();
+};
+
+function showSelectedFile() {
+    document.getElementById("fileName").innerText = selectedFile.name;
+    document.getElementById("pdfViewer").src = URL.createObjectURL(selectedFile);
+}
+
+/* ================================
+   UPLOAD TO BACKEND
+================================ */
+async function uploadFile() {
+    if (!selectedFile) {
+        statusEl.innerText = "Please select a PDF!";
+        return;
+    }
+
+    statusEl.innerText = "Uploading & extracting...";
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+        const res = await fetch("https://macrodyne-s277.onrender.com/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        numbers = data.numbers || [];
+        tolerances = data.tolerances || {};   // 🔥 THIS LINE
+        balloonPDFUrl = data.balloon_pdf || null;   
+
+        // 🔥 THIS IS THE IMPORTANT LINE
+        if (balloonPDFUrl) {
+            document.getElementById("pdfViewer").src =
+                "https://macrodyne-s277.onrender.com" + balloonPDFUrl;
+        }
+
+        pushHistory();
+        renderNumbers();
+
+        statusEl.innerText = "Extraction successful!";
+
+    } catch (err) {
+        statusEl.innerText = "Error: " + err.message;
+    }
+}
+
+/* ================================
+   DISPLAY NUMBERS
+================================ */
+function renderNumbers() {
+    numbersBox.innerHTML = "";
+
+    numbers.forEach((obj, index) => {
+        const row = document.createElement("div");
+        row.className = "num-row";
+
+        const sno = document.createElement("span");
+        sno.className = "num-index";
+        sno.innerText = index + 1;
+
+        const input = document.createElement("input");
+        input.className = "num-input";
+        input.value = obj.value;
+
+        input.oninput = e => {
+            pushHistory();
+            obj.value = e.target.value;
+        };
+
+        // 🟦 FORCE INCH BUTTON
+        const inchBtn = document.createElement("button");
+        inchBtn.className = obj.forceInch ? "btn-bluee active" : "btn-bluee";
+        inchBtn.innerText = obj.forceInch ? "Inch ✓" : "Mark as Inch";
+
+        inchBtn.onclick = () => {
+            pushHistory();
+            obj.forceInch = !obj.forceInch;
+            renderNumbers();
+        };
+
+        // ❌ Remove
+        const delBtn = document.createElement("button");
+        delBtn.className = "btn-red";
+        delBtn.innerText = "Remove";
+        delBtn.onclick = () => {
+            pushHistory();
+            numbers.splice(index, 1);
+            renderNumbers();
+        };
+
+        row.appendChild(sno);
+        row.appendChild(input);
+        row.appendChild(inchBtn);
+        row.appendChild(delBtn);
+
+        numbersBox.appendChild(row);
+    });
+}
+
+function editNumber(i, val) {
+    pushHistory();
+    numbers[i] = val;
+}
+
+function removeNumber(i) {
+    pushHistory();
+    numbers.splice(i, 1);
+    renderNumbers();
+}
+
+function addMeasurement() {
+    pushHistory(); // ✅ allow undo
+
+    numbers.push({
+        value: "",          // empty editable field
+        forceInch: false,   // default
+        manual: true        // optional flag (future use)
+    });
+
+    renderNumbers();
+
+    // 🔥 auto-focus last added input
+    setTimeout(() => {
+        const inputs = document.querySelectorAll(".num-input");
+        if (inputs.length) {
+            inputs[inputs.length - 1].focus();
+        }
+    }, 0);
+}
+
+/* ================================
+   UNDO
+================================ */
+function pushHistory() {
+    historyStack.push(JSON.stringify(numbers));
+    if (historyStack.length > 50) historyStack.shift();
+}
+
+function undo() {
+    if (!historyStack.length) return;
+    numbers = JSON.parse(historyStack.pop());
+    renderNumbers();
+}
+
+/* ================================
+   EXCEL
+================================ */
+async function downloadExcel() {
+    if (!window.XLSX) {
+        await loadScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js");
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    const sheetData = [
+        ["Index", "Measurement"]
+    ];
+
+    numbers.forEach((item, index) => {
+        sheetData.push([
+            index + 1,        // S.No
+            item.value,      // ✅ actual extracted number
+        ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, "Measurements");
+
+    XLSX.writeFile(wb, "measurements.xlsx");
+}
+
+function loadScript(src) {
+    return new Promise(resolve => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        document.body.appendChild(s);
+    });
+}
+
+function stripBrackets(val) {
+    return val.replace(/^\[|\]$/g, "").trim();
+}
+
+async function downloadMetricExcel() {
+    if (!window.XLSX) {
+        await loadScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js");
+    }
+
+    const wb = XLSX.utils.book_new();
+    const sheetData = [["Index", "Metric Measurement"]];
+
+    numbers.forEach((item, index) => {
+        // ✅ ONLY values NOT marked as inch
+        if (item.forceInch !== true) {
+            sheetData.push([
+                index + 1,
+                item.value
+            ]);
+        }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, "Metric");
+
+    XLSX.writeFile(wb, "metric_measurements.xlsx");
+}
+
+async function downloadInchExcel() {
+    if (!window.XLSX) {
+        await loadScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js");
+    }
+
+    const wb = XLSX.utils.book_new();
+    const sheetData = [["Index", "Inch Measurement"]];
+
+    numbers.forEach((item, index) => {
+        // ✅ ONLY user-clicked "Mark as Inch"
+        if (item.forceInch === true) {
+            sheetData.push([
+                index + 1,
+                stripBrackets(item.value) // optional, keeps clean value
+            ]);
+        }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, "Inches");
+
+    XLSX.writeFile(wb, "inch_measurements.xlsx");
+}
+
+/* ================================
+Get tolerance
+================================ */
+function getToleranceType(value) {
+    const v = value.trim();
+
+    // ❌ ignore notes, radius, angles
+    if (/R\d|°|X\s*\d/i.test(v)) return null;
+
+    // ❌ IGNORE SINGLE INTEGERS COMPLETELY (THIS IS YOUR REQUIREMENT)
+    if (/^\d+$/.test(v)) return null;
+
+    // FRACTIONAL (1/16", 13/16")
+    if (v.includes("/")) return "FRACTIONAL";
+
+    // DECIMAL VALUES ONLY
+    if (v.includes(".")) {
+        const decimals = v.split(".")[1].length;
+        if (decimals === 1) return "ONE_DECIMAL";
+        if (decimals === 2) return "TWO_DECIMAL";
+        if (decimals >= 3) return "THREE_DECIMAL";
+    }
+
+    return null;
+}
+
+function isPureInteger(val) {
+    return /^\d+$/.test(val.trim());
+}
+
+function formatByTolerance(value, tolType) {
+    if (tolType === "FRACTIONAL") {
+        return value.toString(); // keep decimal result as-is
+    }
+
+    if (tolType === "ONE_DECIMAL") {
+        return value.toFixed(1);
+    }
+
+    if (tolType === "TWO_DECIMAL") {
+        return value.toFixed(2);
+    }
+
+    if (tolType === "THREE_DECIMAL") {
+        return value.toFixed(3);
+    }
+
+    return value.toString();
+}
+
+function fractionToDecimal(val) {
+    const clean = val.replace(/"/g, "").trim();
+    if (!clean.includes("/")) return parseFloat(clean);
+
+    const [n, d] = clean.split("/");
+    return parseFloat(n) / parseFloat(d);
+}
+
+function decimalToFraction(value) {
+    const tolerance = 1e-6;
+    const denominators = [2, 4, 8, 16, 32];
+
+    for (let d of denominators) {
+        const n = Math.round(value * d);
+        if (Math.abs(value - n / d) < tolerance) {
+            if (n === 0) return "0";
+            return `${n}/${d}`;
+        }
+    }
+    return value.toString(); // fallback
+}
+
+function calculateLimits(nominal, tol) {
+    return {
+        minus: nominal - tol,
+        plus: nominal + tol
+    };
+}
+
+function getStatus(actual, minus, plus) {
+    const mid = (minus + plus) / 2;
+    const range = plus - minus;
+
+    // middle 20% → GREEN
+    if (Math.abs(actual - mid) <= range * 0.2) {
+        return "OK";     // 🟢
+    }
+    return "NOT OK";     // 🔴
+}
+
+async function downloadToleranceExcel() {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Tolerance Check");
+
+    sheet.columns = [
+        { header: "Index", key: "i", width: 8 },
+        { header: "Nominal", key: "n", width: 12 },
+        { header: "Minus Tol", key: "m", width: 12 },
+        { header: "Plus Tol", key: "p", width: 12 },
+        { header: "Status", key: "s", width: 10 }
+    ];
+
+    numbers.forEach((item, index) => {
+        const raw = item.value.trim();
+
+        if (isPureInteger(raw)) {
+            sheet.addRow({ i: index + 1, n: raw });
+            return;
+        }
+
+        const type = getToleranceType(raw);
+        if (!type || !tolerances[type]) return;
+
+        const nominal = raw.includes("/")
+            ? fractionToDecimal(raw)
+            : parseFloat(raw);
+
+        const tol = tolerances[type];
+        const { minus, plus } = calculateLimits(nominal, tol);
+        const status = getStatus(nominal, minus, plus);
+
+        const row = sheet.addRow({
+            i: index + 1,
+            n: raw,
+            m: type === "FRACTIONAL" ? decimalToFraction(minus) : formatByTolerance(minus, type),
+            p: type === "FRACTIONAL" ? decimalToFraction(plus) : formatByTolerance(plus, type),
+            s: status
+        });
+
+        const statusCell = row.getCell(5);
+
+        if (status === "OK") {
+            statusCell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FF92D050" } // GREEN
+            };
+        } else {
+            statusCell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFFF4C4C" } // RED
+            };
+        }
+
+        statusCell.font = { bold: true };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "tolerance_check.xlsx";
+    link.click();
+}
+
+/* ================================
+BALLOONED PDF
+================================ */
+function downloadBallooned() {
+    if (!balloonPDFUrl) {
+        alert("Ballooned PDF not generated yet!");
+        return;
+    }
+    window.open("https://macrodyne-s277.onrender.com/download-ballooned", "_blank");
+}
+</script>
+
+</body>
+</html>
